@@ -1,0 +1,1 @@
+preload = ["./src/plugins/opentelemetry/opentelemetry.plugin.ts"]

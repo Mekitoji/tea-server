@@ -1,0 +1,85 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "bun run dev 2>&1 | tee -a /app/logs/api.log"]
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgres://teamaster:teapassword@postgres:5432/tea_master
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      PG_APPLICATION_NAME: ${PG_APPLICATION_NAME:-tea-server-api}
+      PG_POOL_MIN: ${PG_POOL_MIN:-1}
+      PG_POOL_MAX: ${PG_POOL_MAX:-10}
+      PG_POOL_IDLE_TIMEOUT_MS: ${PG_POOL_IDLE_TIMEOUT_MS:-0}
+      PG_POOL_CONNECTION_TIMEOUT_MS: ${PG_POOL_CONNECTION_TIMEOUT_MS:-5000}
+      PG_POOL_KEEP_ALIVE: ${PG_POOL_KEEP_ALIVE:-true}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-tea-server}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${DOCKER_OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
+      OTEL_TRACE_HEALTHCHECKS: ${OTEL_TRACE_HEALTHCHECKS:-false}
+      OTEL_PG_ENHANCED_DATABASE_REPORTING: ${OTEL_PG_ENHANCED_DATABASE_REPORTING:-false}
+    env_file:
+      - ./.env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+      - ./src:/app/src
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./bunfig.toml:/app/bunfig.toml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.130.0
+    profiles:
+      - observability
+    volumes:
+      - ./logs:/otel-logs
+      - ./otel-collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/jaeger:2.17.0
+    profiles:
+      - observability
+    command:
+      - "--set"
+      - "receivers.otlp.protocols.grpc.endpoint=0.0.0.0:4317"
+      - "--set"
+      - "receivers.otlp.protocols.http.endpoint=0.0.0.0:4318"
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tea_master
+      POSTGRES_USER: teamaster
+      POSTGRES_PASSWORD: teapassword
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_NAME: ${ADMIN_NAME:-admin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/db/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro
+      - ./src/db/seeds/001_initial_data.sql:/docker-entrypoint-initdb.d/002_initial_data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teamaster -d tea_master"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

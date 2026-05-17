@@ -1,0 +1,34 @@
+{
+  "name": "tea-server",
+  "version": "0.1.0",
+  "module": "src/index.ts",
+  "author": "Vladimir Egorov <mktji.job@gmail.com>",
+  "dependencies": {
+    "@elysia/opentelemetry": "^1.4.12",
+    "@elysiajs/cors": "^1.4.2",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.218.0",
+    "@opentelemetry/instrumentation-pg": "^0.70.0",
+    "@opentelemetry/sdk-trace-node": "^2.7.1",
+    "@types/pg": "^8.20.0",
+    "elysia": "^1.4.28",
+    "elysia-rate-limit": "^4.6.2",
+    "elysiajs-helmet": "^1.0.5",
+    "kysely": "^0.29.0",
+    "pg": "^8.20.0",
+    "pino": "^10.3.1"
+  },
+  "scripts": {
+    "test": "bun test",
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build --target=bun --outdir dist ./src/index.ts",
+    "start": "bun src/index.ts",
+    "db:migrate": "sh -c 'for file in src/db/migrations/*.sql; do psql \"$DATABASE_URL\" -f \"$file\"; done'",
+    "db:seed": "sh src/db/seeds/001_initial_data.sh",
+    "start:docker:dev": "OTEL_ENABLED=true docker compose --profile observability up --build -d",
+    "tmux:docker:monitor": "./scripts/tmux-docker-monitor.sh"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "pino-pretty": "^13.1.3"
+  }
+}
