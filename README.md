@@ -17,6 +17,7 @@ bun run dev
 ```
 
 Open <http://localhost:3000/api/v1/health> to check the server.
+Open <http://localhost:3000/api/v1/metrics> to inspect Prometheus metrics.
 
 Build the server bundle with Bun as the runtime target:
 
@@ -41,3 +42,13 @@ docker compose up --build
 
 For the first Docker start, create `.env` from `.env.example`, prepare the logs
 folder, build images, and start containers with the Bun script:
+
+```bash
+bun run start:docker:dev
+```
+
+With the `observability` profile enabled, local dashboards are available at:
+
+- Jaeger: <http://localhost:16686>
+- Prometheus: <http://localhost:9090>
+- Grafana: <http://localhost:3001>

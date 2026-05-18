@@ -8,6 +8,7 @@ const telemetryEnabled =
   Bun.env.OTEL_ENABLED === "true" && Bun.env.OTEL_SDK_DISABLED !== "true";
 
 const shouldTraceHealthchecks = Bun.env.OTEL_TRACE_HEALTHCHECKS === "true";
+const shouldTraceMetrics = Bun.env.OTEL_TRACE_METRICS === "true";
 
 export const opentelemetryPlugin = telemetryEnabled
   ? opentelemetry({
@@ -26,11 +27,17 @@ export const opentelemetryPlugin = telemetryEnabled
       },
       recordBody: false,
       checkIfShouldTrace: (request) => {
+        const pathname = new URL(request.url).pathname;
+
+        if (!shouldTraceMetrics && pathname === "/api/v1/metrics") {
+          return false;
+        }
+
         if (shouldTraceHealthchecks) {
           return true;
         }
 
-        return new URL(request.url).pathname !== "/api/v1/health";
+        return pathname !== "/api/v1/health";
       },
     })
   : new Elysia({ name: "telemetry-disabled" });

@@ -16,15 +16,26 @@ import { securityPlugin } from "./plugins/security";
 import { errorPlugin } from "./plugins/error";
 import { dbPlugin, db } from "./plugins/db";
 import { loggerPlugin } from "./plugins/logger";
+import { metricsPlugin } from "./plugins/metrics";
+import {
+  PROMETHEUS_CONTENT_TYPE,
+  renderPrometheusMetrics,
+} from "./shared/metrics";
 
 export const createV1Api = () =>
   new Elysia({ prefix: "/api/v1" })
     .use(opentelemetryPlugin)
+    .use(metricsPlugin)
     .use(loggerPlugin)
     .use(securityPlugin)
     .use(dbPlugin)
     .use(errorPlugin)
     .get("/health", () => ({ status: "ok" as const }))
+    .get("/metrics", ({ set }) => {
+      set.headers["content-type"] = PROMETHEUS_CONTENT_TYPE;
+
+      return renderPrometheusMetrics();
+    })
     .use(createAuthDomain(db))
     .use(createUserDomain(db))
     .use(createDeviceDomain(db))

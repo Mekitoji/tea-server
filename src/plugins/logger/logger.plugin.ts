@@ -26,6 +26,7 @@ interface PrincipalLogContext {
 const requestContexts = new WeakMap<Request, RequestLogContext>();
 
 const shouldLogHealthchecks = Bun.env.LOG_HTTP_HEALTHCHECKS === "true";
+const shouldLogMetrics = Bun.env.LOG_HTTP_METRICS === "true";
 const accessLogsEnabled = Bun.env.LOG_HTTP_ACCESS !== "false";
 
 const readHeader = (request: Request, name: string) =>
@@ -49,9 +50,15 @@ const readRemoteIp = (request: Request) => {
 
 const getPathname = (request: Request) => new URL(request.url).pathname;
 
-const shouldLogRequest = (request: Request) =>
-  accessLogsEnabled &&
-  (shouldLogHealthchecks || getPathname(request) !== "/api/v1/health");
+const shouldLogRequest = (request: Request) => {
+  const pathname = getPathname(request);
+
+  return (
+    accessLogsEnabled &&
+    (shouldLogHealthchecks || pathname !== "/api/v1/health") &&
+    (shouldLogMetrics || pathname !== "/api/v1/metrics")
+  );
+};
 
 const getStatusCode = (status: unknown, responseValue: unknown) => {
   if (typeof status === "number") {

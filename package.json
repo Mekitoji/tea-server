@@ -1,6 +1,6 @@
 {
   "name": "tea-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "module": "src/index.ts",
   "author": "Vladimir Egorov <mktji.job@gmail.com>",
   "dependencies": {
@@ -24,7 +24,7 @@
     "start": "bun src/index.ts",
     "db:migrate": "sh -c 'for file in src/db/migrations/*.sql; do psql \"$DATABASE_URL\" -f \"$file\"; done'",
     "db:seed": "sh src/db/seeds/001_initial_data.sh",
-    "start:docker:dev": "OTEL_ENABLED=true docker compose --profile observability up --build -d",
+    "start:docker:metrics": "OTEL_ENABLED=true docker compose --profile observability up --build -d",
     "tmux:docker:monitor": "./scripts/tmux-docker-monitor.sh"
   },
   "devDependencies": {
