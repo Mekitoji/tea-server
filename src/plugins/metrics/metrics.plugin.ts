@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 
 import { recordHttpRequestMetric } from "../../shared/metrics";
+import { isMetricsEnabled } from "../../shared/metrics/metrics.config";
 
 interface RequestMetricsContext {
   startedAt: number;
@@ -116,24 +117,33 @@ const recordRequest = (context: {
   recordedRequests.add(request);
 };
 
-export const metricsPlugin = new Elysia({ name: "metrics-plugin" })
-  .onRequest(({ request }) => {
-    requestContexts.set(request, {
-      startedAt: performance.now(),
+export const createMetricsPlugin = () => {
+  if (!isMetricsEnabled()) {
+    return new Elysia({ name: "metrics-plugin-disabled" });
+  }
+
+  return new Elysia({ name: "metrics-plugin" })
+    .onRequest(({ request }) => {
+      requestContexts.set(request, {
+        startedAt: performance.now(),
+      });
+    })
+    .onAfterHandle({ as: "global" }, (context) => {
+      recordRequest({
+        ...context,
+        fallbackStatusCode: 200,
+      });
+    })
+    .onError({ as: "global" }, (context) => {
+      recordRequest({
+        ...context,
+        responseValue: undefined,
+        route: undefined,
+        path: getPathname(context.request),
+        fallbackStatusCode: getErrorStatusCode(
+          context.error,
+          context.set.status,
+        ),
+      });
     });
-  })
-  .onAfterHandle({ as: "global" }, (context) => {
-    recordRequest({
-      ...context,
-      fallbackStatusCode: 200,
-    });
-  })
-  .onError({ as: "global" }, (context) => {
-    recordRequest({
-      ...context,
-      responseValue: undefined,
-      route: undefined,
-      path: getPathname(context.request),
-      fallbackStatusCode: getErrorStatusCode(context.error, context.set.status),
-    });
-  });
+};

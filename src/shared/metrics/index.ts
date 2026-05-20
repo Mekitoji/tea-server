@@ -1,28 +1,30 @@
 import {
-  ActiveResourceMetrics,
-  EventLoopMetrics,
-  HttpMetrics,
-  NodeMemoryMetrics,
-  ProcessMetrics,
-  PrometheusMetrics,
-  ResourceUsageMetrics,
-  ServiceMetrics,
-} from "./renderers";
+  ActiveResourceCollector,
+  EventLoopCollector,
+  HttpCollector,
+  NodeMemoryCollector,
+  ProcessCollector,
+  PrometheusCollector,
+  ResourceUsageCollector,
+  ServiceCollector,
+} from "./collectors";
+import { MetricRegistry } from "./core";
 
 export const PROMETHEUS_CONTENT_TYPE =
   "text/plain; version=0.0.4; charset=utf-8";
 
-const httpMetrics = new HttpMetrics();
-const prometheusMetrics = new PrometheusMetrics(
-  new ServiceMetrics(),
-  new ProcessMetrics(
-    new NodeMemoryMetrics(),
-    new EventLoopMetrics(),
-    new ActiveResourceMetrics(),
-    new ResourceUsageMetrics(),
+const httpMetrics = new HttpCollector();
+const metricsRegistry = new MetricRegistry([
+  new ServiceCollector(),
+  new ProcessCollector(
+    new NodeMemoryCollector(),
+    new EventLoopCollector(),
+    new ActiveResourceCollector(),
+    new ResourceUsageCollector(),
   ),
   httpMetrics,
-);
+]);
+const prometheusMetrics = new PrometheusCollector(metricsRegistry);
 
 export const recordHttpRequestMetric = (input: {
   durationSeconds: number;

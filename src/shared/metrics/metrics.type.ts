@@ -1,18 +1,12 @@
 export type HttpRequestLabels = {
   method: string;
   route: string;
-  statusCode: string;
+  status_code: string;
 };
 
 export type HttpDurationLabels = {
   method: string;
   route: string;
-};
-
-export type HistogramState = {
-  buckets: number[];
-  count: number;
-  sum: number;
 };
 
 export type ProcessWithActiveResources = {

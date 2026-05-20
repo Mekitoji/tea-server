@@ -2,24 +2,45 @@ import { describe, expect, it } from "bun:test";
 import { Elysia } from "elysia";
 
 import {
-  PROMETHEUS_CONTENT_TYPE,
   renderPrometheusMetrics,
   resetMetricsForTests,
 } from "../../shared/metrics";
-import { metricsPlugin } from "./metrics.plugin";
+import { createMetricsEndpointPlugin } from "./metrics-endpoint.plugin";
+import { createMetricsPlugin } from "./metrics.plugin";
+
+const createTestApp = () =>
+  new Elysia({ prefix: "/api/v1" })
+    .use(createMetricsPlugin())
+    .use(createMetricsEndpointPlugin());
+
+const withMetricsEnabled = async (
+  value: string | undefined,
+  callback: () => Promise<void>,
+) => {
+  const previousValue = Bun.env.METRICS_ENABLED;
+
+  if (value === undefined) {
+    delete Bun.env.METRICS_ENABLED;
+  } else {
+    Bun.env.METRICS_ENABLED = value;
+  }
+
+  try {
+    await callback();
+  } finally {
+    if (previousValue === undefined) {
+      delete Bun.env.METRICS_ENABLED;
+    } else {
+      Bun.env.METRICS_ENABLED = previousValue;
+    }
+  }
+};
 
 describe("metricsPlugin", () => {
   it("records HTTP request counters and duration histograms with route labels", async () => {
     resetMetricsForTests();
 
-    const app = new Elysia()
-      .use(metricsPlugin)
-      .get("/api/v1/devices/:id", () => ({ ok: true }))
-      .get("/api/v1/metrics", ({ set }) => {
-        set.headers["content-type"] = PROMETHEUS_CONTENT_TYPE;
-
-        return renderPrometheusMetrics();
-      });
+    const app = createTestApp().get("/devices/:id", () => ({ ok: true }));
 
     const response = await app.handle(
       new Request("http://localhost/api/v1/devices/device_1234567890abcdef"),
@@ -50,10 +71,7 @@ describe("metricsPlugin", () => {
   it("does not record healthcheck or metrics scrapes by default", async () => {
     resetMetricsForTests();
 
-    const app = new Elysia()
-      .use(metricsPlugin)
-      .get("/api/v1/health", () => ({ status: "ok" }))
-      .get("/api/v1/metrics", () => renderPrometheusMetrics());
+    const app = createTestApp().get("/health", () => ({ status: "ok" }));
 
     await app.handle(new Request("http://localhost/api/v1/health"));
     await app.handle(new Request("http://localhost/api/v1/metrics"));
@@ -68,7 +86,7 @@ describe("metricsPlugin", () => {
   it("records unhandled errors as 500 responses", async () => {
     resetMetricsForTests();
 
-    const app = new Elysia().use(metricsPlugin).get("/api/v1/fail", () => {
+    const app = createTestApp().get("/fail", () => {
       throw new Error("boom");
     });
 
@@ -80,5 +98,24 @@ describe("metricsPlugin", () => {
     expect(renderPrometheusMetrics()).toContain(
       'http_requests_total{method="GET",route="/api/v1/fail",status_code="500"} 1',
     );
+  });
+
+  it("does not register metrics endpoint or record requests when metrics are disabled", async () => {
+    await withMetricsEnabled("false", async () => {
+      resetMetricsForTests();
+
+      const app = createTestApp().get("/devices/:id", () => ({ ok: true }));
+
+      const response = await app.handle(
+        new Request("http://localhost/api/v1/devices/device_1234567890abcdef"),
+      );
+      expect(response.status).toBe(200);
+
+      const metricsResponse = await app.handle(
+        new Request("http://localhost/api/v1/metrics"),
+      );
+      expect(metricsResponse.status).toBe(404);
+      expect(renderPrometheusMetrics()).not.toContain("http_requests_total{");
+    });
   });
 });

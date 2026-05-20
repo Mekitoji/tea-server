@@ -24,7 +24,8 @@
     "start": "bun src/index.ts",
     "db:migrate": "sh -c 'for file in src/db/migrations/*.sql; do psql \"$DATABASE_URL\" -f \"$file\"; done'",
     "db:seed": "sh src/db/seeds/001_initial_data.sh",
-    "start:docker:metrics": "OTEL_ENABLED=true docker compose --profile observability up --build -d",
+    "start:docker:dev": "OTEL_ENABLED=false METRICS_ENABLED=true docker compose up --build -d",
+    "start:docker:metrics": "OTEL_ENABLED=true METRICS_ENABLED=true docker compose --profile observability up --build -d",
     "tmux:docker:monitor": "./scripts/tmux-docker-monitor.sh"
   },
   "devDependencies": {

@@ -18,6 +18,8 @@ bun run dev
 
 Open <http://localhost:3000/api/v1/health> to check the server.
 Open <http://localhost:3000/api/v1/metrics> to inspect Prometheus metrics.
+Set `METRICS_ENABLED=false` to disable Prometheus instrumentation and the
+`/api/v1/metrics` endpoint.
 
 Build the server bundle with Bun as the runtime target:
 
